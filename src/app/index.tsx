@@ -1,98 +1,145 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BrandLogo } from '@/components/brand-logo';
+import { ExportButton } from '@/components/export-button';
+import { FoodForm } from '@/components/food-form';
+import { FoodList } from '@/components/food-list';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Colors, MaxContentWidth, Spacing, WideBreakpoint } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
+import { useFoods } from '@/hooks/use-foods';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function DashboardScreen() {
+  const { user, signOut } = useAuth();
+  const { foods, names, isLoading, error, createFood } = useFoods();
+  const { width } = useWindowDimensions();
+  const wide = width >= WideBreakpoint;
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <View style={styles.headerInner}>
+          <BrandLogo size="small" />
+          <View style={styles.headerRight}>
+            {wide && <Text style={styles.userName}>Olá, {user?.name}</Text>}
+            <Button title="Sair" variant="outline" onPress={signOut} style={styles.signOut} />
+          </View>
+        </View>
+      </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled">
+          <View style={[styles.content, wide && styles.contentWide]}>
+            <View style={wide ? styles.formColumn : undefined}>
+              <FoodForm
+                suggestions={names}
+                defaultRegisteredBy={user?.name ?? ''}
+                onSubmit={createFood}
+              />
+            </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+            <View style={wide ? styles.listColumn : undefined}>
+              <Card>
+                <View style={styles.listHeader}>
+                  <Text style={styles.listTitle}>Registros</Text>
+                  <ExportButton foods={foods} />
+                </View>
+                {!!error && <Text style={styles.error}>{error}</Text>}
+                <FoodList foods={foods} isLoading={isLoading} wide={wide} />
+              </Card>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    backgroundColor: Colors.background,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  flex: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
-    textAlign: 'center',
+  header: {
+    backgroundColor: Colors.white,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
+  headerInner: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.black,
+  },
+  signOut: {
+    minHeight: 40,
+    paddingHorizontal: Spacing.three,
+  },
+  scroll: {
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
+  },
+  content: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    gap: Spacing.three,
+  },
+  contentWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  formColumn: {
+    width: 380,
+  },
+  listColumn: {
+    flex: 1,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  listTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.black,
+  },
+  error: {
+    color: Colors.danger,
+    fontWeight: '600',
   },
 });
